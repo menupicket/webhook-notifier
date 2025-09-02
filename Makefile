@@ -32,3 +32,7 @@ type-check:
 
 .PHONY: code-check
 code-check: format lint type-check
+
+.PHONY: rmpyc
+rmpyc:
+	find . -name "__pycache__" -type d -exec rm -r {} +

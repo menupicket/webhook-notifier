@@ -94,7 +94,7 @@ def upgrade():
             primary_key=True,
             server_default=sa.text("uuid_generate_v4()"),
         ),
-        sa.Column("event_type", sa.String, nullable=False),
+        sa.Column("event_id", pg.UUID, nullable=False),
         sa.Column("payload", JSON, nullable=False),
         sa.Column("status", sa.String, default="pending"),
         sa.Column("attempts", sa.Integer, default=0),
