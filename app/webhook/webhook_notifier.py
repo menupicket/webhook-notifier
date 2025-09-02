@@ -7,12 +7,13 @@ from datetime import datetime
 from celery import Celery  # type: ignore
 from sqlalchemy import and_
 from sqlalchemy.sql import text
+from sqlalchemy.exc import SQLAlchemyError
+from celery.exceptions import CeleryError  # type: ignore
 
 from app.db.session import SessionLocal
 from app.core import config
 from sqlalchemy.orm import Session
 from app.models import Subscriber, Webhook, WebhookDelivery, WebhookEvent
-from app.webhook.schema import WebhookDeliverySchema
 
 logger = structlog.get_logger()
 
@@ -87,7 +88,26 @@ class WebhookNotifier:
                 user_id=user_id,
                 subscriber_count=subscriber_count,
             )
-
+            return {"status": "success", "message": "Event published successfully"}
+        except SQLAlchemyError as db_error:
+            logger.error(
+                "Database error occurred while publishing webhook event",
+                extra={"event_id": event_id, "error": str(db_error)},
+            )
+            db.rollback()
+            return {
+                "status": "error",
+                "message": "Failed to store event in the database",
+            }
+        except CeleryError as queue_error:
+            logger.error(
+                "Queue error occurred while publishing webhook event",
+                extra={"event_id": event_id, "error": str(queue_error)},
+            )
+            return {
+                "status": "error",
+                "message": "Failed to enqueue event for processing",
+            }
         finally:
             db.close()
 
@@ -161,25 +181,50 @@ def _process_webhook_event_impl(
         # Send to each webhook
         for webhook in webhooks:
             try:
-                delivery = WebhookDelivery(
-                    webhook_id=webhook.id,
-                    event_type=event_type,
-                    payload=payload,
-                    status="pending",
-                    attempts=0,
+                # Ensure that the event processing is idempotent
+                # so that retries do not result in duplicate webhook deliveries.
+                # For the production system, we should check for the delivery
+                # existence before creating a new one.
+                # key(webhook.id, event_id)
+                delivery = None
+                existing_delivery = (
+                    db.query(WebhookDelivery)
+                    .filter(
+                        WebhookDelivery.webhook_id == webhook.id,
+                        WebhookDelivery.event_id == event_id,
+                    )
+                    .first()
                 )
-                db.add(delivery)
-                db.commit()
+                if not existing_delivery:
+                    delivery = WebhookDelivery(
+                        webhook_id=webhook.id,
+                        event_id=event_id,
+                        payload=payload,
+                        status="pending",
+                        attempts=0,
+                    )
+                    db.add(delivery)
+                    db.commit()
+                else:
+                    if existing_delivery.status == "delivered":
+                        logger.info(
+                            "Webhook already delivered",
+                            webhook_id=webhook.id,
+                            event_id=event_id,
+                        )
+                        continue
+                    else:
+                        delivery = existing_delivery
+                if delivery:
+                    # Send HTTP request
+                    success = _send_webhook_request(webhook, payload, delivery, db)
 
-                delivery_schema = WebhookDeliverySchema.model_validate(delivery)
-
-                # Send HTTP request
-                success = _send_webhook_request(webhook, payload, delivery_schema, db)
-
-                if not success and task.request.retries < task.max_retries:
-                    # Retry with exponential backoff
-                    retry_delay = WebhookNotifier().retry_delays[task.request.retries]
-                    raise task.retry(countdown=retry_delay)
+                    if not success and task.request.retries < task.max_retries:
+                        # Retry with exponential backoff
+                        retry_delay = WebhookNotifier().retry_delays[
+                            task.request.retries
+                        ]
+                        raise task.retry(countdown=retry_delay)
 
             except Exception as e:
                 logger.error(
@@ -205,7 +250,7 @@ def _process_webhook_event_impl(
 def _send_webhook_request(
     webhook: Webhook,
     payload: Dict[str, Any],
-    delivery: WebhookDeliverySchema,
+    delivery: WebhookDelivery,
     db: Session,
 ) -> bool:
     """Send HTTP POST request to webhook URL"""
@@ -225,13 +270,13 @@ def _send_webhook_request(
             )
 
             # Update delivery record
-            delivery.attempts += 1
-            delivery.last_attempt = datetime.utcnow()
-            delivery.response_status = response.status_code
-            delivery.response_body = response.text[:1000]  # Limit response body size
+            delivery.attempts += 1  # type: ignore
+            delivery.last_attempt = datetime.utcnow()  # type: ignore
+            delivery.response_status = response.status_code  # type: ignore
+            delivery.response_body = response.text[:1000]  # type: ignore
 
             if response.status_code < 400:
-                delivery.status = "delivered"
+                delivery.status = "delivered"  # type: ignore
                 logger.info(
                     "Webhook delivered successfully",
                     webhook_id=webhook.id,
@@ -240,7 +285,7 @@ def _send_webhook_request(
                 db.commit()
                 return True
             else:
-                delivery.status = "failed"
+                delivery.status = "failed"  # type: ignore
                 logger.warning(
                     "Webhook delivery failed",
                     webhook_id=webhook.id,
@@ -250,10 +295,10 @@ def _send_webhook_request(
                 return False
 
     except Exception as e:
-        delivery.attempts += 1
-        delivery.last_attempt = datetime.utcnow()
-        delivery.status = "failed"
-        delivery.response_body = str(e)[:1000]
+        delivery.attempts += 1  # type: ignore
+        delivery.last_attempt = datetime.utcnow()  # type: ignore
+        delivery.status = "failed"  # type: ignore
+        delivery.response_body = str(e)[:1000]  # type: ignore
         db.commit()
 
         logger.error("Webhook request failed", webhook_id=webhook.id, error=str(e))

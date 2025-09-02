@@ -94,7 +94,7 @@ class WebhookEvent(BaseModel):
 
 class WebhookDeliverySchema(BaseModel):
     webhook_id: UUID
-    event_type: str
+    event_id: UUID
     payload: dict
     status: str
     attempts: int

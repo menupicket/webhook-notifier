@@ -1,6 +1,3 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import ARRAY, Integer
-from typing import Literal, Optional, Union
 from sqlalchemy import Engine, MetaData, create_engine
 from sqlalchemy.dialects import postgresql
 

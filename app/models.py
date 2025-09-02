@@ -63,7 +63,7 @@ class WebhookDelivery(Base, PrimaryKeyUuidMixin):
     __tablename__ = "webhook_deliveries"
 
     webhook_id: Mapped[UUID] = mapped_column(ForeignKey("webhooks.id"))
-    event_type = Column(String, nullable=False)
+    event_id: Mapped[UUID]
     payload = Column(JSON, nullable=False)
     status = Column(String, default="pending")  # pending, delivered, failed
     attempts = Column(Integer, default=0)
