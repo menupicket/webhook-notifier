@@ -8,11 +8,25 @@
       - docker
       - docker-compose
 
-### Create the virtual environment
+## Running services using docker
+### 1. Build docker images
+- Run the following command to build docker images:
+
+      docker-compose build --no-cache
+### 2. Start services
+- Simply run the following command to start all services. Please make sure that db (5432), redis(6379) and app (8000) ports are available before running the command.
+
+      docker-compose up
+- or 
+      
+      docker-compose up - d
+
+## Running services manually
+### 1. Create the virtual environment
 
       python3 -m venv .venv
 
-### Activate the virtual environment
+### 2. Activate the virtual environment
 - On macOS/Linux:
 
       source .venv/bin/activate
@@ -21,7 +35,7 @@
 
       .venv\Scripts\activate
 
-### Setup development environment
+### 3. Setup development environment
 - Install dependencies
 
       pip install -r requirements.txt --no-cache-dir
@@ -34,12 +48,12 @@
 
       alembic upgrade head
 
-### Start the API server
+### 4. Start the API server
 - Open a new terminal 1
 
       uvicorn app.main:app --reload
 
-### Start Celery workers
+### 5. Start Celery workers
 - Open a new terminal 2
 
       celery -A app.webhook.webhook_notifier.celery_app worker --loglevel=info --queues=webhooks_priority --concurrency=8
@@ -48,7 +62,7 @@
 
       celery -A app.webhook.webhook_notifier.celery_app worker --loglevel=info --queues=webhooks --concurrency=4
 
-### Run tests
+### 6. Run tests
 
     make test
 
@@ -146,4 +160,4 @@
       python app/tests/gen_subscribers.py
 
 ## Documents
-- Webhook Notifier System Design
+- [Webhook Notifier System Design](/documents/sytem_design.md)

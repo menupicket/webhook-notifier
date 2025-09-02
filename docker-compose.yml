@@ -6,20 +6,32 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/whookfirm
-      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=whookfirm
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - db
       - redis
     volumes:
       - .:/app
+    command: >
+      sh -c "./wait-for-it.sh db:5432 -- alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   worker:
     build: .
     command: celery -A app.webhook.webhook_notifier.celery_app worker --loglevel=info --concurrency=4
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/whookfirm
-      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=whookfirm
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - db
       - redis
@@ -30,8 +42,13 @@ services:
     build: .
     command: celery -A app.webhook.webhook_notifier.celery_app worker --loglevel=info --queues=webhooks_priority --concurrency=8
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/whookfirm
-      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=whookfirm
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - db
       - redis
