@@ -7,7 +7,6 @@
 The primary objectives of this system are to:
 
 - Provide a robust web-based interface for subscriber management through internal APIs
-- Support external integrations via public APIs with multiple authentication methods (OAuth2 and API keys)
 - Deliver reliable, scalable, and fair webhook notifications to external systems
 - Ensure high availability and security for all customer data and operations
 - Scale efficiently to handle customers ranging from hundreds to hundreds of thousands of subscribers
@@ -15,28 +14,26 @@ The primary objectives of this system are to:
 ### 3. Architecture selection
 - Monolith vs Microservices: We chose a microservices architecture to enable independent scaling and technology choices per component, accepting increased complexity in service coordination and deployment management.
 
-- Event-driven vs Synchronous: Selected event-driven architecture for webhook processing to ensure system resilience and scalability, trading off immediate consistency for eventual consistency in some scenarios.- 
+- Event-driven vs Synchronous: Selected event-driven architecture for webhook processing to ensure system resilience and scalability, trading off immediate consistency for eventual consistency in some scenarios.
 
 
 ## II. Requirements
 ### 1. Functional requirements
-- **Subscriber Management**: Complete CRUD operations for subscriber data with validation and deduplication
-- **Webhook Delivery**: Real-time event notifications with configurable endpoints and event types
-- **Retry Mechanisms**: Intelligent retry logic for failed webhook deliveries with exponential backoff
-- **Multi-tenant Architecture**: Complete data isolation between customer accounts
-- **Audit Logging**: Comprehensive logging of all API operations and administrative actions
+- **Subscriber Management**: Allow to create and list subscribers.
+- **Webhook Delivery**: Real-time event notifications with configurable endpoints and event types.
+- **Retry Mechanisms**: Intelligent retry logic for failed webhook deliveries with exponential backoff.
+- **Multi-tenant Architecture**: Complete data isolation between customer accounts.
 
 ### 2. Non-Functional Requirements
 - **Reliability**: A retry mechanism should be in place in case the system fails or there are networking issues from integration partners.
-- **Scalability**: Support for 10,000+ concurrent users and 1M+ webhook deliveries per hour.
+- **Scalability**: The workers should be horizontally scalable depending on events'
+volume and traffic.
 - **Fairness**: Prevent large accounts from monopolizing system resources.
 - **Data Consistency**: ACID compliance for critical operations, eventual consistency acceptable for webhook delivery.
-- **Availability**: 99.9% uptime with automated failover capabilities.
 
 In this design, I did allow system to have **some limitations**:
 - **Authentication Support**: Dual authentication mechanisms supporting both OAuth2 for partner integrations and API keys for private integrations are not in the scope of this design document.
 - **No Order Guarantee**: system does not guarantee any order for webhook events.
-- **Handle HTTP/S communication only**: sending webhooks in any other type of communication manner (e.g., send to queue, TCP, etc.) will not be supported.
 
 ## III. High level archtecture
 ### 1. High-level architecture diagram
