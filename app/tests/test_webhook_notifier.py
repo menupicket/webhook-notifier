@@ -15,8 +15,8 @@ def test_publish_event_low_priority(
     mock_db = MagicMock()
     mock_session.return_value = mock_db
     notifier._get_subscriber_count = MagicMock(
-        return_value=5000
-    )  # Low-subscriber account
+        return_value=500000
+    )  # High-subscriber account
     notifier._calculate_delay = MagicMock(return_value=10)
 
     event_type = "test_event"
@@ -49,8 +49,8 @@ def test_publish_event_high_priority(
     mock_db = MagicMock()
     mock_session.return_value = mock_db
     notifier._get_subscriber_count = MagicMock(
-        return_value=15000
-    )  # High-subscriber account
+        return_value=5000
+    )  # Low-subscriber account
 
     event_type = "test_event"
     user_id = uuid.uuid4()
